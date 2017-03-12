@@ -1,0 +1,293 @@
+---
+title: "Machine Lerning - Course Project "
+author: "Verence"
+date: "9 März 2017"
+output: 
+  html_document:
+    toc: true
+#    toc_depth: 2
+    toc_float: true
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Synopsis #
+
+
+# Used Packages and Data source #
+## Packages ##
+``` {r ,echo=TRUE}
+library(caret)  
+```
+
+## Data source ##
+``` {r ,echo=FALSE}
+# download data and creat directory to save it 
+get_data <- function(url,filename){
+  dir <- "./data"
+  path <- paste(dir,"/",filename,sep = "")
+  
+  if(!file.exists(dir)){
+    dir.create(dir)
+  }
+  
+  if(!file.exists(path)){
+    print(paste("Downloading data:",url))
+    download.file(url = url,destfile = path)
+  }
+
+  data <- read.table(file = path,header = TRUE,sep = ",")
+}
+```
+
+
+
+First I fetch the training data set and test data set for this report.
+I create a DataFrame *pml_training* based on training data available on [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv).
+Also I create a DataFrame *pml_testing* based on testing data available on [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv).
+
+
+``` {r ,echo=FALSE, cache=TRUE}
+# set parameter for download
+url_training <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+filename_training <- "pml-training.csv"
+url_test <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+filename_test <- "pml-testing.csv"
+
+# load data 
+pml_training <- get_data(url_training,filename_training)
+pml_testing <- get_data(url_test,filename_test)
+```
+
+# Splitting Data #
+I split the available training data into to two parts one to build and train the model and one to test the model. The *training* contains 14718 data sets and the *test* date contains 4904 data set.
+Both data frames have 159 posible predictors and one output.
+
+``` {r ,echo=TRUE, cache=TRUE}
+set.seed(1000)
+# split data of into training and test data
+inTrain <- createDataPartition(y = pml_training$classe,p=0.75,list=FALSE) 
+training <- pml_training[inTrain,]
+test <- pml_training[-inTrain,]
+```
+
+
+# Model Bilding #
+The training data has 159 posible predictors and one output variable which is the *class* variable.
+## finding significants *
+I start to find significant variable for prediction.
+Analysing the *training* data I notice that a few cloumns contains NA. Columns with many NA are not veriy significant for predicting.
+Predictors with a large variance a better candidates for model building.
+
+
+``` {r ,echo=TRUE, cache=TRUE}
+nzv <- nearZeroVar(training, saveMetrics = TRUE)
+nzv_false <- nzv[nzv$nzv == FALSE,]
+nzv_false_desc <- nzv_false[order(nzv_false$percentUnique, decreasing = TRUE),]
+```
+
+Following  is a list of top twenty predictors odered by percentUnique desc.
+Near zero variables are not listed.
+
+``` {r ,echo=FALSE}
+head(nzv_false_desc,n = 20)
+```
+
+The sensor data where collected on 4 different point: dumbbell, belt,forearm,arm. 
+By selecting variable as predictor I used following creterias:
++ Select a variable as predictor where percentUnique is to high the risk of overfitting increase. 
++ Also select a variable as predictor with high freqRatio is to high the predictor will probably has less significant
++ Variabels schould be independent by each other.
++ Select to many variables as predictor the risk of overfitting rise and calulation affor increse.
+
+<!--My intension is to include one variable from each of the 4 different sensor points.-->
+My intension is to include variables of same type from each of the 4 different sensor points in the model. #Looking at the table above I select a predictor with a high percentUnique and high freqRatio. 
+<!--#The percentUnique schould be less then 15 and the freqRatio schould be less then 2. -->
+From each sensor point the *pitch_* and  *yaw_* variable will be used as predictor variables.
+
+# Computed rmse #
+Based on the *training* data we got following root mean square error for a model with the selected predictors:
+(computed with train function of caret package and *glm* as methode argument)
+
+
+``` {r, echo=FALSE}
+# setup DF to store predicor combination and rmse
+predictor_rmse <- data.frame(Predictors=character(), stringsAsFactors=FALSE,
+                             rmse=numeric(0))
+```
+
+``` {r  modFit1, echo=FALSE, cache=TRUE, warning=FALSE, message=FALSE}
+set.seed(1000)
+modFit1 <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                ,data = training,  methods = "glm") 
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_arm +  yaw_arm", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit1$finalModel$err.rate)))
+```
+
+``` {r  modFit5, echo=FALSE, cache=TRUE, warning=FALSE, message=FALSE}
+set.seed(1000)
+modFit5 <- train(classe ~ 
+                + pitch_belt + yaw_belt 
+                ,data = training,  methods = "glm") 
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_belt + yaw_belt", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit5$finalModel$err.rate)))
+```
+
+``` {r modFit6, echo=FALSE, cache=TRUE, warning=FALSE, message=FALSE}
+set.seed(1000) 
+modFit6 <- train(classe ~ 
+                + pitch_forearm + yaw_forearm
+                ,data = training,  methods = "glm") 
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_forearm + yaw_forearm", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit6$finalModel$err.rate)))
+```
+
+``` {r modFit7, echo=FALSE, cache=TRUE, warning=FALSE}
+set.seed(1000)
+modFit7 <- train(classe ~ 
+                + pitch_dumbbell + yaw_dumbbell
+                ,data = training,  methods = "glm") 
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_dumbbell + yaw_dumbbell", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit7$finalModel$err.rate)))
+```
+
+
+``` {r modFit2, echo=FALSE, cache=TRUE}
+set.seed(1000)
+modFit2 <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                + pitch_belt + yaw_belt 
+                ,data = training,  methods = "glm") 
+```
+
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_arm +  yaw_arm + pitch_belt + yaw_belt", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit2$finalModel$err.rate)))
+```
+
+``` {r modFit3, echo=FALSE, cache=TRUE}
+set.seed(1000)
+modFit3 <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                + pitch_belt + yaw_belt 
+                + pitch_forearm + yaw_forearm
+                ,data = training,  methods = "glm") 
+```
+
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_arm + yaw_arm + pitch_belt + yaw_belt + pitch_forearm + yaw_forearm", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit3$finalModel$err.rate)))
+```
+
+
+``` {r modFit15, echo=FALSE, cache=TRUE}
+set.seed(1000)
+modFit15 <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                + pitch_belt + yaw_belt 
+                + pitch_dumbbell + yaw_dumbbell
+                ,data = training,  methods = "glm") 
+
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_arm + yaw_arm + pitch_belt + yaw_belt + pitch_dumbbell + yaw_dumbbell", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit15$finalModel$err.rate)))
+```
+
+
+``` {r modFit4, echo=FALSE, cache=TRUE}
+set.seed(1000)
+modFit4 <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                + pitch_belt + yaw_belt 
+                + pitch_forearm + yaw_forearm
+                + pitch_dumbbell + yaw_dumbbell
+                ,data = training,  methods = "glm") 
+```
+
+``` {r , echo=FALSE}
+predictor_rmse  <- rbind(predictor_rmse,data.frame(Predictors="pitch_arm +  yaw_arm + pitch_belt + yaw_belt + pitch_forearm + yaw_forearm + pitch_dumbbell + yaw_dumbbell", stringsAsFactors=FALSE,
+                                                   rmse=mean(modFit4$finalModel$err.rate)))
+```
+
+
+``` {r ,echo=TRUE, cache=FALSE}
+library(knitr)
+kable(predictor_rmse)
+```
+
+
+Looking at the table above you can see how the rmse goes down be include more and more predictor variables in the model.
+To avoid overfitting only pitch_arm + yaw_arm + pitch_dumbbell + yaw_dumbbell + pitch_forearm + yaw_forearm will selected as predictos in the final model.
+So the final model will create as follow:
+
+``` {r modFit_final, echo=TRUE, cache=TRUE}
+set.seed(1000)
+modFit_final <- train(classe ~ 
+                + pitch_arm +  yaw_arm
+                + pitch_belt + yaw_belt 
+                + pitch_forearm + yaw_forearm
+                + pitch_dumbbell + yaw_dumbbell
+                ,data = training,  methods = "glm") 
+
+```
+
+``` {r , echo=TRUE}
+modFit_final
+```
+
+The final model has an estimate of error rate of `r 2.9` on *training* data.
+The model was generated based on 25 boot bootstrapped each with a sample sizes of 14718.
+
+``` {r , echo=TRUE}
+print(modFit_final)
+```
+
+
+
+# Cross Validation #
+Priorly with data was split into training and test data.
+Now the model will validated on *test* data.
+
+``` {r , echo=TRUE, cache=TRUE}
+# validate model
+predTest <- predict(modFit_final,test)
+# confusion matrix
+confusionMatrix(predTest, test$classe)
+```
+
+The accuracy on *test* data will be `r 0.028`. It is some points worst than the accuracy on *training* data.
+
+# Results #
+The created model inclule 8 variables as predictors and reach an accuracy of `r 0.028` on *training* data and an accuracy on *training* data of.
+
+Apply the final Model on previously downloaded data set "pml_testing" the prediction will be as followed:
+
+``` {r ,echo=TRUE, cache=FALSE}
+pml_testing$class_predicted <- predict(modFit_final,pml_testing)
+library(knitr)
+kable(pml_testing[,c("X","class_predicted")])
+```
+
+
+
