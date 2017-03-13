@@ -1,7 +1,7 @@
 ---
-title: "Machine Lerning - Course Project "
+title: "Machine Leaning - Course Project "
 author: "Verence"
-date: "9 März 2017"
+date: "9 March 2017"
 output: 
   html_document:
     toc: true
@@ -14,9 +14,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-# Synopsis #
-
 
 # Used Packages and Data source #
 ## Packages ##
@@ -65,7 +62,7 @@ pml_testing <- get_data(url_test,filename_test)
 
 # Splitting Data #
 I split the available training data into to two parts one to build and train the model and one to test the model. The *training* contains 14718 data sets and the *test* date contains 4904 data set.
-Both data frames have 159 posible predictors and one output.
+Both data frames have 159 possible predictors and one output.
 
 ``` {r ,echo=TRUE, cache=TRUE}
 set.seed(1000)
@@ -76,11 +73,11 @@ test <- pml_training[-inTrain,]
 ```
 
 
-# Model Bilding #
-The training data has 159 posible predictors and one output variable which is the *class* variable.
+# Model Building #
+The training data has 159 possible predictors and one output variable which is the *class* variable.
 ## finding significants *
 I start to find significant variable for prediction.
-Analysing the *training* data I notice that a few cloumns contains NA. Columns with many NA are not veriy significant for predicting.
+Analyseing the *training* data I notice that a few columns contains NA. Columns with many NA are not very significant for predicting.
 Predictors with a large variance a better candidates for model building.
 
 
@@ -90,7 +87,7 @@ nzv_false <- nzv[nzv$nzv == FALSE,]
 nzv_false_desc <- nzv_false[order(nzv_false$percentUnique, decreasing = TRUE),]
 ```
 
-Following  is a list of top twenty predictors odered by percentUnique desc.
+Following  is a list of top twenty predictors ordered by percentUnique desc.
 Near zero variables are not listed.
 
 ``` {r ,echo=FALSE}
@@ -98,11 +95,12 @@ head(nzv_false_desc,n = 20)
 ```
 
 The sensor data where collected on 4 different point: dumbbell, belt,forearm,arm. 
-By selecting variable as predictor I used following creterias:
-+ Select a variable as predictor where percentUnique is to high the risk of overfitting increase. 
-+ Also select a variable as predictor with high freqRatio is to high the predictor will probably has less significant
-+ Variabels schould be independent by each other.
-+ Select to many variables as predictor the risk of overfitting rise and calulation affor increse.
+By selecting variable as predictor I used following criterias:
+
+ * Select a variable as predictor where percentUnique is to high the risk of overfitting increase. 
+ * Also select a variable as predictor with high freqRatio is to high the predictor will probably has less significant
+ * variables schoud be independent by each other.
+ * Select to many variables as predictor the risk of overfitting rise and calulation affor increse.
 
 <!--My intension is to include one variable from each of the 4 different sensor points.-->
 My intension is to include variables of same type from each of the 4 different sensor points in the model. #Looking at the table above I select a predictor with a high percentUnique and high freqRatio. 
@@ -237,8 +235,8 @@ kable(predictor_rmse)
 ```
 
 
-Looking at the table above you can see how the rmse goes down be include more and more predictor variables in the model.
-To avoid overfitting only pitch_arm + yaw_arm + pitch_dumbbell + yaw_dumbbell + pitch_forearm + yaw_forearm will selected as predictos in the final model.
+Looking at the table above you can see how the rmse goes down be include more and more predictors variables in the model.
+To avoid overfitting only pitch_arm + yaw_arm + pitch_dumbbell + yaw_dumbbell + pitch_forearm + yaw_forearm will selected as predictors in the final model.
 So the final model will create as follow:
 
 ``` {r modFit_final, echo=TRUE, cache=TRUE}
@@ -259,31 +257,26 @@ modFit_final
 The final model has an estimate of error rate of `r 2.9` on *training* data.
 The model was generated based on 25 boot bootstrapped each with a sample sizes of 14718.
 
-``` {r , echo=TRUE}
-print(modFit_final)
-```
-
-
 
 # Cross Validation #
 Priorly with data was split into training and test data.
 Now the model will validated on *test* data.
 
-``` {r , echo=TRUE, cache=TRUE}
+``` {r , echo=TRUE, cache=TRUE, warning=FALSE, message=FALSE}
 # validate model
 predTest <- predict(modFit_final,test)
 # confusion matrix
 confusionMatrix(predTest, test$classe)
 ```
 
-The accuracy on *test* data will be `r 0.028`. It is some points worst than the accuracy on *training* data.
+The accuracy on *test* data will be `r  0.9763`.
 
 # Results #
-The created model inclule 8 variables as predictors and reach an accuracy of `r 0.028` on *training* data and an accuracy on *training* data of.
+The created model include 8 variables as predictors and reach an accuracy of `r 0.9763` on *training* data and an accuracy on *training* data of.
 
 Apply the final Model on previously downloaded data set "pml_testing" the prediction will be as followed:
 
-``` {r ,echo=TRUE, cache=FALSE}
+``` {r ,echo=TRUE, cache=FALSE, warning=FALSE, message=FALSE}
 pml_testing$class_predicted <- predict(modFit_final,pml_testing)
 library(knitr)
 kable(pml_testing[,c("X","class_predicted")])
